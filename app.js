@@ -1,44 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- STATE ---
     const defaultPortfolioState = {
-        'Para_Piyasasi': { 
-            name: 'Para Piyasası', target: 45, 
-            funds: [ 
-                {code: 'AIS', target: 65, bal: 129463.20}, 
-                {code: 'GPN', target: 35, bal: 0} 
-            ] 
-        },
-        'Teknoloji': { 
-            name: 'Teknoloji', target: 15, 
-            funds: [ 
-                {code: 'CPU', target: 68, bal: 65483.80}, 
-                {code: 'BTK', target: 32, bal: 30756.91} 
-            ] 
-        },
-        'Altin': { 
-            name: 'Altın', target: 15, 
-            funds: [ {code: 'KZL', target: 100, bal: 46273.28} ] 
-        },
-        'Kira_Sertifikasi': { 
-            name: 'Kira Sertifikası', target: 15, 
-            funds: [ {code: 'RBT', target: 100, bal: 0} ] 
-        },
-        'Coklu_Varlik': {
-            name: 'Çoklu Varlık', target: 0,
-            funds: []
-        },
-        'Hisse_Senedi': { 
-            name: 'Hisse Senedi', target: 10, 
-            funds: [ {code: 'RBH', target: 100, bal: 0} ] 
-        },
-        'Birinci_Katilim': {
-            name: 'Birinci Katılım', target: 0,
-            funds: []
-        },
-        'Diger': {
-            name: 'Diğer', target: 0,
-            funds: []
-        }
+        'Para_Piyasasi': { name: 'Para Piyasası', target: 0, funds: [] },
+        'Teknoloji': { name: 'Teknoloji', target: 0, funds: [] },
+        'Altin': { name: 'Altın', target: 0, funds: [] },
+        'Kira_Sertifikasi': { name: 'Kira Sertifikası', target: 0, funds: [] },
+        'Coklu_Varlik': { name: 'Çoklu Varlık', target: 0, funds: [] },
+        'Hisse_Senedi': { name: 'Hisse Senedi', target: 0, funds: [] },
+        'Birinci_Katilim': { name: 'Birinci Katılım', target: 0, funds: [] },
+        'Diger': { name: 'Diğer', target: 0, funds: [] }
     };
 
     let portfolioState = JSON.parse(localStorage.getItem('tefas_portfolioState')) || defaultPortfolioState;
@@ -389,10 +359,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let totalSpent = Object.values(buyOrders).reduce((a, b) => a + b, 0);
 
-        // Adjust via AIS if needed (buffer fund)
-        if (totalSpent > newCash && buyOrders['AIS']) {
-            const shortfall = totalSpent - newCash;
-            buyOrders['AIS'] = Math.max(0, buyOrders['AIS'] - shortfall);
+        // Eğer hedeflenen alımlar mevcut nakitten fazlaysa, alımları nakde göre oransal küçült
+        if (totalSpent > newCash) {
+            const ratio = newCash > 0 ? newCash / totalSpent : 0;
+            for (let code in buyOrders) {
+                buyOrders[code] = buyOrders[code] * ratio;
+            }
             totalSpent = Object.values(buyOrders).reduce((a, b) => a + b, 0);
         }
 
