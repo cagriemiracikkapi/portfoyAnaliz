@@ -79,15 +79,39 @@
         <div id="tab-market" class="tab-content" role="tabpanel" aria-labelledby="tab-market-btn">
             <section class="panel glass">
                 <div class="panel-header">
-                    <h2>📈 Tefas Katılım Fonları</h2>
+                    <h2>📈 Tefas Katılım Fonları <span id="fund-count-badge" class="badge count-badge">Yükleniyor...</span></h2>
                     <input type="text" id="fund-search" class="target-input search-input" placeholder="Fon Kodu veya Adı Ara...">
                 </div>
 
-                <!-- Column toggles dropdown -->
-                <div class="filter-dropdown">
-                    <button type="button" class="btn-secondary" id="filter-dropdown-btn">⚙️ Sütunları Seç</button>
-                    <div class="column-toggles dropdown-content" id="column-toggles">
-                        <!-- Dinamik olarak JS ile dolacak -->
+                <!-- Table Controls -->
+                <div class="table-controls">
+                    <div class="filter-dropdown">
+                        <button type="button" class="btn-secondary" id="filter-dropdown-btn">⚙️ Sütunları Seç</button>
+                        <div class="column-toggles dropdown-content" id="column-toggles">
+                            <!-- Dinamik olarak JS ile dolacak -->
+                        </div>
+                    </div>
+                    <button type="button" class="btn-secondary" id="advanced-filter-btn">🔍 Gelişmiş Filtreler</button>
+                    <button type="button" class="btn-secondary" id="export-csv-btn">📥 CSV Dışa Aktar</button>
+                </div>
+
+                <!-- Advanced Filter Panel (Hidden by default) -->
+                <div id="advanced-filter-panel" class="advanced-filter-panel" style="display: none;">
+                    <h3>Gelişmiş Filtre Kuralları</h3>
+                    <div id="active-rules-list"></div>
+
+                    <div class="add-rule-form">
+                        <select id="rule-col" class="target-input"></select>
+                        <select id="rule-op" class="target-input">
+                            <option value=">">Büyüktür (&gt;)</option>
+                            <option value="<">Küçüktür (&lt;)</option>
+                            <option value="=">Eşittir (=)</option>
+                            <option value="between">Arasında (min-max)</option>
+                            <option value="contains">İçerir (Metin)</option>
+                        </select>
+                        <input type="text" id="rule-val1" class="target-input" placeholder="Değer 1">
+                        <input type="text" id="rule-val2" class="target-input hidden-input" placeholder="Değer 2">
+                        <button type="button" id="add-rule-btn" class="btn-primary custom-add-rule-btn">+ Kural Ekle</button>
                     </div>
                 </div>
 
@@ -102,6 +126,7 @@
                             <tr><td colspan="10" class="empty-state">Veriler yükleniyor...</td></tr>
                         </tbody>
                     </table>
+                    <div id="pagination-controls" class="pagination-controls"></div>
                 </div>
             </section>
         </div>

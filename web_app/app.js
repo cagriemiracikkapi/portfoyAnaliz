@@ -31,8 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let allFundsData = []; // From CSV
     let headers = []; // Dynamic headers from CSV
+    let activeFilters = []; // Advanced Rules
+    let currentFilteredData = []; // Kept for export
     let sortCol = 7; // Default sort by YBB
     let sortAsc = false;
+    
+    // Pagination
+    let currentPage = 1;
+    const rowsPerPage = 15;
 
     // --- ELEMENTS ---
     const container = document.getElementById('categories-container');
@@ -274,8 +280,145 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- FON PİYASASI (CSV) LOGIC ---
-    
+    // --- ADVANCED FILTERS LOGIC ---
+    let editingFilterIndex = null;
+    const advFilterBtn = document.getElementById('advanced-filter-btn');
+    const advFilterPanel = document.getElementById('advanced-filter-panel');
+    const ruleColSelect = document.getElementById('rule-col');
+    const ruleOpSelect = document.getElementById('rule-op');
+    const ruleVal1 = document.getElementById('rule-val1');
+    const ruleVal2 = document.getElementById('rule-val2');
+    const addRuleBtn = document.getElementById('add-rule-btn');
+    const activeRulesList = document.getElementById('active-rules-list');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
+
+    if (advFilterBtn) {
+        advFilterBtn.addEventListener('click', () => {
+            advFilterPanel.style.display = advFilterPanel.style.display === 'none' ? 'block' : 'none';
+        });
+
+        ruleOpSelect.addEventListener('change', () => {
+            if (ruleOpSelect.value === 'between') {
+                ruleVal2.style.display = 'block';
+            } else {
+                ruleVal2.style.display = 'none';
+            }
+        });
+
+        addRuleBtn.addEventListener('click', () => {
+            const colIdx = parseInt(ruleColSelect.value);
+            const op = ruleOpSelect.value;
+            const v1 = ruleVal1.value;
+            const v2 = ruleVal2.value;
+
+            if (!v1) return;
+
+            const newRule = {
+                colIdx: colIdx,
+                colName: headers[colIdx],
+                op: op,
+                v1: v1,
+                v2: v2
+            };
+
+            if (editingFilterIndex !== null) {
+                activeFilters[editingFilterIndex] = newRule;
+                editingFilterIndex = null;
+                addRuleBtn.textContent = "+ Kural Ekle";
+            } else {
+                activeFilters.push(newRule);
+            }
+
+            ruleVal1.value = '';
+            ruleVal2.value = '';
+            currentPage = 1; // Reset pagination
+            renderActiveFilters();
+            renderTable();
+        });
+    }
+
+    function renderActiveFilters() {
+        activeRulesList.innerHTML = activeFilters.map((f, i) => {
+            let desc = '';
+            if (f.op === 'between') desc = `${f.colName} şunlar arasında: ${f.v1} - ${f.v2}`;
+            else if (f.op === 'contains') desc = `${f.colName} içerir: "${f.v1}"`;
+            else desc = `${f.colName} ${f.op} ${f.v1}`;
+            
+            return `
+                <div class="active-rule-item">
+                    <span>${desc}</span>
+                    <div style="display:flex; gap:0.5rem;">
+                        <button type="button" data-idx="${i}" class="edit-rule-btn">✏️</button>
+                        <button type="button" data-idx="${i}" class="remove-rule-btn">&times;</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        document.querySelectorAll('.remove-rule-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                activeFilters.splice(e.target.dataset.idx, 1);
+                
+                // If the deleted rule was being edited, cancel edit
+                if (editingFilterIndex === parseInt(e.target.dataset.idx)) {
+                    editingFilterIndex = null;
+                    addRuleBtn.textContent = "+ Kural Ekle";
+                    ruleVal1.value = '';
+                    ruleVal2.value = '';
+                }
+                
+                currentPage = 1; // Reset pagination
+                renderActiveFilters();
+                renderTable();
+            });
+        });
+
+        document.querySelectorAll('.edit-rule-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                const f = activeFilters[idx];
+                
+                ruleColSelect.value = f.colIdx;
+                ruleOpSelect.value = f.op;
+                ruleVal1.value = f.v1;
+                ruleVal2.value = f.v2 || '';
+                
+                ruleOpSelect.dispatchEvent(new Event('change')); // show/hide ruleVal2
+                
+                editingFilterIndex = idx;
+                addRuleBtn.textContent = "✓ Kuralı Güncelle";
+            });
+        });
+    }
+
+    exportCsvBtn.addEventListener('click', () => {
+        if (currentFilteredData.length === 0) return;
+        
+        // Sadece görünür sütunları dışa aktaralım
+        const visibleCols = [];
+        document.querySelectorAll('#column-toggles input').forEach(chk => {
+            if(chk.checked) visibleCols.push(parseInt(chk.value));
+        });
+
+        const exportData = [visibleCols.map(c => headers[c])]; // Header row
+        
+        currentFilteredData.forEach(row => {
+            exportData.push(visibleCols.map(c => row[c] || ''));
+        });
+
+        const csvString = Papa.unparse(exportData);
+        const blob = new Blob(["\ufeff" + csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "Tefas_Filtrelenmis_Liste.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+
+    // --- TABLE & CSV PARSING ---
     function parseNumberStr(str) {
         if(!str) return -999999;
         return parseFloat(str.replace(',', '.')) || -999999;
@@ -284,10 +427,42 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTable() {
         const query = searchInput.value.toLowerCase();
         
-        // Filter
+        // Filter (Search + Advanced Rules)
         let filtered = allFundsData.filter(row => {
-            return row[0].toLowerCase().includes(query) || row[1].toLowerCase().includes(query);
+            // Text Search
+            const matchSearch = row[0].toLowerCase().includes(query) || row[1].toLowerCase().includes(query);
+            if (!matchSearch) return false;
+
+            // Advanced Rules (AND logic)
+            for (let filter of activeFilters) {
+                let cellVal = row[filter.colIdx];
+                let isNumCol = (filter.colIdx >= 3 && filter.colIdx <= 16) || filter.colIdx > 17; // General heuristic for Tefas CSV
+                
+                if (filter.op === 'contains') {
+                    if (!(cellVal || "").toLowerCase().includes(filter.v1.toLowerCase())) return false;
+                } else {
+                    let numVal = parseNumberStr(cellVal);
+                    let v1 = parseFloat(filter.v1.replace(',', '.')) || 0;
+                    
+                    if (filter.op === '>') {
+                        if (numVal <= v1) return false;
+                    } else if (filter.op === '<') {
+                        if (numVal >= v1) return false;
+                    } else if (filter.op === '=') {
+                        if (numVal !== v1) return false;
+                    } else if (filter.op === 'between') {
+                        let v2 = parseFloat(filter.v2.replace(',', '.')) || 0;
+                        let min = Math.min(v1, v2);
+                        let max = Math.max(v1, v2);
+                        if (numVal < min || numVal > max) return false;
+                    }
+                }
+            }
+            return true;
         });
+
+        // Store for export
+        currentFilteredData = filtered;
 
         // Sort
         filtered.sort((a, b) => {
@@ -306,12 +481,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return 0;
         });
 
+        // Pagination
+        const totalPages = Math.ceil(filtered.length / rowsPerPage);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        
+        const startIndex = (currentPage - 1) * rowsPerPage;
+        const paginatedData = filtered.slice(startIndex, startIndex + rowsPerPage);
+
         // Render Header
         tableHeaderRow.innerHTML = headers.map((h, i) => {
             const isHidden = !document.querySelector(`#column-toggles input[value="${i}"]`).checked;
             if(isHidden) return '';
-            let arrow = sortCol === i ? (sortAsc ? ' ↑' : ' ↓') : '';
-            return `<th data-col="${i}">${h}${arrow}</th>`;
+            const isSorted = sortCol === i;
+            const sortIcon = isSorted ? (sortAsc ? ' 🔼' : ' 🔽') : '';
+            return `<th data-col="${i}" style="cursor:pointer">${h}${sortIcon}</th>`;
         }).join('') + '<th>İşlem</th>';
 
         // Bind Sort Events
@@ -320,17 +503,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const col = parseInt(th.dataset.col);
                 if(sortCol === col) sortAsc = !sortAsc;
                 else { sortCol = col; sortAsc = false; }
+                currentPage = 1;
                 renderTable();
             });
         });
 
+        const fundCountBadge = document.getElementById('fund-count-badge');
+        if (fundCountBadge) {
+            fundCountBadge.textContent = `${filtered.length} Fon Listelendi`;
+        }
+
         // Render Body
-        if (filtered.length === 0) {
+        if (paginatedData.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="10" class="empty-state">Kayıt bulunamadı.</td></tr>`;
+            document.getElementById('pagination-controls').innerHTML = '';
             return;
         }
 
-        tableBody.innerHTML = filtered.map(row => {
+        tableBody.innerHTML = paginatedData.map(row => {
             let html = '';
             headers.forEach((_, i) => {
                 const isHidden = !document.querySelector(`#column-toggles input[value="${i}"]`).checked;
@@ -348,9 +538,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 modal.classList.add('show');
             });
         });
+
+        renderPagination(totalPages);
     }
 
-    searchInput.addEventListener('input', renderTable);
+    function renderPagination(totalPages) {
+        const paginationContainer = document.getElementById('pagination-controls');
+        if (!paginationContainer) return;
+        
+        if (totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
+        let html = `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="window.changePage(${currentPage - 1})">Önceki</button>`;
+        
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+        
+        if (startPage > 1) {
+            html += `<button class="page-btn" onclick="window.changePage(1)">1</button>`;
+            if (startPage > 2) html += `<span>...</span>`;
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="window.changePage(${i})">${i}</button>`;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += `<span>...</span>`;
+            html += `<button class="page-btn" onclick="window.changePage(${totalPages})">${totalPages}</button>`;
+        }
+        
+        html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="window.changePage(${currentPage + 1})">Sonraki</button>`;
+        
+        paginationContainer.innerHTML = html;
+    }
+    
+    window.changePage = function(page) {
+        currentPage = page;
+        renderTable();
+    };
+
+    searchInput.addEventListener('input', () => {
+        currentPage = 1;
+        renderTable();
+    });
 
     // Parse CSV from global variable (bypasses CORS)
     Papa.parse(csvRawData, {
@@ -363,15 +596,25 @@ document.addEventListener('DOMContentLoaded', () => {
             // Default active columns
             const defaultCols = ['Fon Kodu', 'Fon Adı', 'Şemsiye Fon Türü', 'Fonun Risk Değeri', '1 Ay (%)', 'Yılbaşından İtibaren (%)', '1 Yıl (%)'];
             
-            // Build toggles
-            columnTogglesContainer.innerHTML = headers.map((h, i) => {
+            // Build toggles and Dropdown Options
+            let togglesHTML = '';
+            let optionsHTML = '';
+            
+            headers.forEach((h, i) => {
                 const isChecked = defaultCols.includes(h) ? 'checked' : '';
-                return `<label><input type="checkbox" ${isChecked} value="${i}"> ${h}</label>`;
-            }).join('');
+                togglesHTML += `<label><input type="checkbox" ${isChecked} value="${i}"> ${h}</label>`;
+                optionsHTML += `<option value="${i}">${h}</option>`;
+            });
+            
+            columnTogglesContainer.innerHTML = togglesHTML;
+            if (ruleColSelect) ruleColSelect.innerHTML = optionsHTML;
             
             // Bind Toggles
             document.querySelectorAll('#column-toggles input').forEach(chk => {
-                chk.addEventListener('change', renderTable);
+                chk.addEventListener('change', () => {
+                    currentPage = 1;
+                    renderTable();
+                });
             });
             
             renderTable();
