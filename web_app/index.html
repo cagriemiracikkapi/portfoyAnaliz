@@ -57,10 +57,22 @@
             </section>
 
             <!-- RIGHT COLUMN: RESULTS -->
-            <section class="panel glass results-panel">
-                <div class="panel-header">
-                    <h2>📊 İşlem Sonuçları</h2>
-                </div>
+            <div class="right-column-wrapper">
+                <!-- PORTFOLIO RISK ANALYSIS -->
+                <section class="panel glass">
+                    <div class="panel-header panel-header-bordered">
+                        <h2>🧭 Portföy Risk Analizi</h2>
+                    </div>
+                    <div id="risk-analysis-content">
+                        <!-- JS ile dolacak -->
+                        <div class="empty-state">Veriler hesaplanıyor...</div>
+                    </div>
+                </section>
+
+                <section class="panel glass results-panel">
+                    <div class="panel-header">
+                        <h2>📊 İşlem Sonuçları</h2>
+                    </div>
 
                 <div class="result-section">
                     <h3>Alış Emirleri <span id="res-cash" class="badge">Nakit: 0 TL</span></h3>
@@ -77,7 +89,17 @@
                         <!-- JS ile dolacak -->
                     </div>
                 </div>
+
+                <div class="divider"></div>
+
+                <div class="result-section">
+                    <h3>🚀 Yeni Risk Profiliniz (Yatırım Sonrası)</h3>
+                    <div id="post-investment-risk" class="post-investment-risk-container">
+                        <div class="empty-state">Hesaplama yapmak için butona tıklayın.</div>
+                    </div>
+                </div>
             </section>
+            </div> <!-- End of Right Column Wrapper -->
         </div>
 
         <!-- TAB 2: FON PİYASASI -->

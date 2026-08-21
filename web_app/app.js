@@ -291,6 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMsg.textContent = hasError ? "Lütfen kırmızı ile belirtilen yüzdelik hatalarını düzeltin." : "";
         calculateBtn.disabled = hasError;
 
+        calculatePortfolioRisk();
         attachUIListeners();
     }
 
@@ -304,6 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.dyn-bal').forEach(inp => {
             inp.addEventListener('change', (e) => {
                 portfolioState[e.target.dataset.cat].funds[e.target.dataset.idx].bal = parseFloat(e.target.value) || 0;
+                calculatePortfolioRisk();
             });
         });
         document.querySelectorAll('.dyn-pct').forEach(inp => {
@@ -415,6 +417,24 @@ document.addEventListener('DOMContentLoaded', () => {
             div.innerHTML = `<div><div class="fund-name">${f.code} <span class="badge" style="margin-left: 10px">% ${pct}</span></div></div><div class="fund-amount" style="color:var(--text-main)">${formatMoney(f.amount)} TL</div>`;
             finalPortfolioList.appendChild(div);
         });
+
+        // Post-Investment Risk Calculation
+        const postRiskContainer = document.getElementById('post-investment-risk');
+        if (postRiskContainer) {
+            let newWeightedRiskSum = 0;
+            const riskIdx = headers.indexOf('Fonun Risk Değeri');
+            
+            finalArr.forEach(f => {
+                const fundData = allFundsData.find(row => row[0] === f.code);
+                if (fundData && riskIdx > -1) {
+                    let r = parseFloat(fundData[riskIdx]) || 0;
+                    newWeightedRiskSum += (r * f.amount);
+                }
+            });
+            
+            let newAvgRisk = finalTotal > 0 ? newWeightedRiskSum / finalTotal : 0;
+            postRiskContainer.innerHTML = generateRiskHTML(finalTotal, newAvgRisk);
+        }
     });
 
     // --- ADVANCED FILTERS LOGIC ---
@@ -932,6 +952,86 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPortfolioUI();
         document.querySelector('[data-tab="tab-rebalancer"]').click(); // switch tab back
     });
+
+    // --- PORTFOLIO RISK ANALYSIS ---
+    function generateRiskHTML(totalBalance, avgRisk) {
+        if (totalBalance === 0) {
+            return `<div class="empty-state">Hesaplanacak bakiye bulunmuyor.</div>`;
+        }
+        
+        let profile = "";
+        let color = "";
+        let badgeColor = "";
+        
+        if (avgRisk < 2.5) {
+            profile = "Düşük Risk (Muhafazakar)";
+            color = "#10b981"; // green
+            badgeColor = "rgba(16, 185, 129, 0.2)";
+        } else if (avgRisk < 4.0) {
+            profile = "Düşük-Orta Risk (Dengeli)";
+            color = "#f59e0b"; // yellow
+            badgeColor = "rgba(245, 158, 11, 0.2)";
+        } else if (avgRisk < 5.5) {
+            profile = "Orta-Yüksek Risk (Büyüme)";
+            color = "#f97316"; // orange
+            badgeColor = "rgba(249, 115, 22, 0.2)";
+        } else {
+            profile = "Çok Yüksek Risk (Agresif)";
+            color = "#ef4444"; // red
+            badgeColor = "rgba(239, 68, 68, 0.2)";
+        }
+
+        const pct = (avgRisk / 7) * 100;
+
+        return `
+            <div class="risk-stat-row">
+                <span class="risk-stat-label">Toplam Bakiye</span>
+                <span class="risk-stat-val">${totalBalance.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺</span>
+            </div>
+            <div class="risk-stat-row">
+                <span class="risk-stat-label">Ortalama Risk Puanı</span>
+                <span class="risk-stat-val">${avgRisk.toFixed(2)} / 7.00</span>
+            </div>
+            <div class="risk-stat-row" style="margin-top:0.8rem; align-items:center;">
+                <span class="risk-stat-label">Risk Profili</span>
+                <span class="risk-badge" style="background:${badgeColor}; color:${color}; border: 1px solid ${color};">${profile}</span>
+            </div>
+            <div class="risk-progress-bar-container">
+                <div class="risk-progress-bar" style="width: ${pct}%; background: ${color};"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                <span>1 (Düşük)</span>
+                <span>7 (Yüksek)</span>
+            </div>
+        `;
+    }
+
+    function calculatePortfolioRisk() {
+        const riskContent = document.getElementById('risk-analysis-content');
+        if (!riskContent) return;
+
+        let totalBalance = 0;
+        let weightedRiskSum = 0;
+        
+        const riskIdx = headers.indexOf('Fonun Risk Değeri');
+
+        for (const catKey in portfolioState) {
+            const cat = portfolioState[catKey];
+            cat.funds.forEach(f => {
+                let bal = parseFloat(f.bal) || 0;
+                totalBalance += bal;
+                
+                const fundData = allFundsData.find(row => row[0] === f.code);
+                if (fundData && riskIdx > -1) {
+                    let r = parseFloat(fundData[riskIdx]) || 0;
+                    weightedRiskSum += (r * bal);
+                }
+            });
+        }
+
+        let avgRisk = totalBalance > 0 ? weightedRiskSum / totalBalance : 0;
+        riskContent.innerHTML = generateRiskHTML(totalBalance, avgRisk);
+    }
 
     // --- GLOBAL TOOLTIP LOGIC ---
     const tooltip = document.createElement('div');
