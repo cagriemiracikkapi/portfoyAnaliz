@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- STATE ---
-    let portfolioState = {
+    const defaultPortfolioState = {
         'Para_Piyasasi': { 
             name: 'Para Piyasası', target: 45, 
             funds: [ 
@@ -40,6 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
             funds: []
         }
     };
+
+    let portfolioState = JSON.parse(localStorage.getItem('tefas_portfolioState')) || defaultPortfolioState;
+
+    function savePortfolioState() {
+        localStorage.setItem('tefas_portfolioState', JSON.stringify(portfolioState));
+    }
 
     let categoryOrder = JSON.parse(localStorage.getItem('categoryOrder')) || Object.keys(portfolioState);
     Object.keys(portfolioState).forEach(k => {
@@ -112,6 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const calculateBtn = document.getElementById('calculate-btn');
     const errorMsg = document.getElementById('error-msg');
     const cashPoolInput = document.getElementById('cash-pool');
+    if (localStorage.getItem('tefas_cashPool')) {
+        cashPoolInput.value = localStorage.getItem('tefas_cashPool');
+    }
+    cashPoolInput.addEventListener('input', () => {
+        localStorage.setItem('tefas_cashPool', cashPoolInput.value);
+    });
     
     // Results
     const buyOrdersList = document.getElementById('buy-orders-list');
@@ -178,8 +190,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- RENDER DYNAMIC PORTFOLIO UI ---
+    // --- RENDER PORTFOLIO UI ---
     function renderPortfolioUI() {
+        savePortfolioState();
         container.innerHTML = '';
         let mainTargetSum = 0;
         let hasError = false;
@@ -1100,6 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function calculatePortfolioRisk() {
+        savePortfolioState();
         const riskContent = document.getElementById('risk-analysis-content');
         if (!riskContent) return;
 
