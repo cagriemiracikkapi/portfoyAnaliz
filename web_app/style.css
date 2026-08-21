@@ -427,3 +427,62 @@ footer { text-align: center; margin-top: 4rem; color: var(--text-muted); font-si
 .drag-handle:active {
     cursor: grabbing;
 }
+
+/* Glass Tooltip */
+.glass-tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 99999;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--accent-blue);
+    border-radius: 8px;
+    padding: 1.2rem;
+    color: white;
+    font-size: 0.95rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.2s, transform 0.2s;
+    max-width: 320px;
+    line-height: 1.5;
+}
+.glass-tooltip.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+.glass-tooltip h4 { margin: 0 0 0.8rem 0; color: var(--accent-blue); font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; }
+.glass-tooltip p { margin: 0.3rem 0; color: var(--text-muted); display:flex; justify-content:space-between; gap:1rem;}
+.glass-tooltip .val { color: white; font-weight: 600; text-align:right;}
+
+/* Make triggers look interactive */
+.fund-hover-trigger {
+    cursor: help;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+    color: var(--accent-blue);
+    transition: color 0.2s;
+}
+.fund-hover-trigger:hover {
+    color: white;
+}
+
+/* Header Actions */
+.header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+.hide-empty-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+.hide-empty-checkbox {
+    margin-right: 5px;
+    accent-color: var(--accent-blue);
+}

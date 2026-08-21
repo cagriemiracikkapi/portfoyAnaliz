@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="fund-row">
                     <div>
                         <label>Fon Kodu</label>
-                        <span class="fund-code-label">${f.code}</span>
+                        <span class="fund-code-label fund-hover-trigger" data-code="${f.code}">${f.code}</span>
                     </div>
                     <div>
                         <label>Bakiye (TL)</label>
@@ -683,6 +683,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(!isHidden) {
                     if (i === catColIdx) {
                         html += `<td><span class="badge" style="background:rgba(59,130,246,0.2); border:1px solid rgba(59,130,246,0.3)">${row[i]}</span></td>`;
+                    } else if (i === 0) {
+                        html += `<td><span class="fund-hover-trigger" data-code="${row[0]}">${row[0]}</span></td>`;
                     } else {
                         html += `<td>${row[i] || '-'}</td>`;
                     }
@@ -817,6 +819,51 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset inputs
         document.getElementById('modal-target-pct').value = "0";
         document.getElementById('modal-balance').value = "0";
+    });
+
+    // --- GLOBAL TOOLTIP LOGIC ---
+    const tooltip = document.createElement('div');
+    tooltip.id = 'global-tooltip';
+    tooltip.className = 'glass-tooltip';
+    document.body.appendChild(tooltip);
+
+    document.body.addEventListener('mousemove', (e) => {
+        const trigger = e.target.closest('.fund-hover-trigger');
+        if (!trigger) {
+            tooltip.classList.remove('show');
+            return;
+        }
+        
+        const code = trigger.dataset.code;
+        const fund = allFundsData.find(r => r[0] === code);
+        if (!fund) return;
+        
+        const risk = fund[3] || '-';
+        const ybb = fund[6] || '0';
+        const oneYear = fund[7] || '0';
+        const fiveYear = fund[9] || '0';
+        
+        tooltip.innerHTML = `
+            <h4>${code} - ${fund[1]}</h4>
+            <p><span>Kategori:</span> <span class="val">${fund[2]}</span></p>
+            <p><span>Risk Değeri:</span> <span class="val">${risk}</span></p>
+            <p><span>Yılbaşı Getirisi:</span> <span class="val" style="color:var(--accent-green)">%${ybb}</span></p>
+            <p><span>1 Yıllık Getiri:</span> <span class="val" style="color:var(--accent-green)">%${oneYear}</span></p>
+            <p><span>5 Yıllık Getiri:</span> <span class="val" style="color:var(--accent-green)">%${fiveYear}</span></p>
+        `;
+        
+        // Position relative to cursor
+        let left = e.clientX + 15;
+        let top = e.clientY + 15;
+        
+        // Keep tooltip strictly inside viewport
+        const rect = tooltip.getBoundingClientRect();
+        if (left + 320 > window.innerWidth) left = e.clientX - 335;
+        if (top + rect.height > window.innerHeight) top = window.innerHeight - rect.height - 10;
+        
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        tooltip.classList.add('show');
     });
 
     // Initial render
