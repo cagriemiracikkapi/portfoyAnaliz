@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kusursuz Portföy Hesaplayıcı</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&amp;display=swap" rel="stylesheet">
+    <!-- PapaParse for CSV reading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="data/merged_katilim.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-orbs" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Portföy Yönetimi <span>Yapay Zeka Destekli</span></h1>
+            <div class="tabs">
+                <button type="button" class="tab-btn active" id="tab-rebalancer-btn" data-tab="tab-rebalancer">Portföy Dağılımı</button>
+                <button type="button" class="tab-btn" id="tab-market-btn" data-tab="tab-market">Tüm Fon Piyasası</button>
+            </div>
+        </header>
+
+        <main>
+        <!-- TAB 1: REBALANCER -->
+        <div id="tab-rebalancer" class="tab-content active grid-layout" role="tabpanel" aria-labelledby="tab-rebalancer-btn">
+            <!-- LEFT COLUMN: SETTINGS -->
+            <section class="panel glass">
+                <div class="panel-header">
+                    <h2>🎯 Strateji &amp; Bakiyeler</h2>
+                    <span id="total-target-main" class="badge badge-green">Kategori Toplamı: % 100</span>
+                </div>
+
+                <div id="categories-container">
+                    <!-- Dinamik Kategoriler JS ile buraya yüklenecek -->
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="input-group highlight-input">
+                    <label for="cash-pool">Yatırılacak Yeni Nakit Havuzu (TL)</label>
+                    <input type="number" id="cash-pool" value="364679.46" step="0.01">
+                </div>
+
+                <button type="button" id="calculate-btn" class="btn-primary">Kusursuz Dağılımı Hesapla</button>
+                <p id="error-msg" class="error-msg" aria-live="polite"></p>
+            </section>
+
+            <!-- RIGHT COLUMN: RESULTS -->
+            <section class="panel glass results-panel">
+                <div class="panel-header">
+                    <h2>📊 İşlem Sonuçları</h2>
+                </div>
+
+                <div class="result-section">
+                    <h3>Alış Emirleri <span id="res-cash" class="badge">Nakit: 0 TL</span></h3>
+                    <div class="result-list" id="buy-orders-list">
+                        <div class="empty-state">Hesaplama yapmak için butona tıklayın.</div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="result-section">
+                    <h3>Son Portföy Dağılımı <span id="res-total" class="badge badge-purple">Toplam: 0 TL</span></h3>
+                    <div class="result-list" id="final-portfolio-list">
+                        <!-- JS ile dolacak -->
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- TAB 2: FON PİYASASI -->
+        <div id="tab-market" class="tab-content" role="tabpanel" aria-labelledby="tab-market-btn">
+            <section class="panel glass">
+                <div class="panel-header">
+                    <h2>📈 Tefas Katılım Fonları</h2>
+                    <input type="text" id="fund-search" class="target-input search-input" placeholder="Fon Kodu veya Adı Ara...">
+                </div>
+
+                <!-- Column toggles -->
+                <div class="column-toggles" id="column-toggles">
+                    <!-- Dinamik olarak JS ile dolacak -->
+                </div>
+
+                <div class="table-responsive">
+                    <table id="funds-table">
+                        <thead>
+                            <tr id="table-header-row">
+                                <!-- JS ile dolacak -->
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <tr><td colspan="10" class="empty-state">Veriler yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+        </main>
+
+        <footer>
+            <p>GitHub Pages ile her yerden erişilebilir. Yatırım tavsiyesi değildir.</p>
+        </footer>
+    </div>
+
+    <!-- MODAL: FONDAN PORTFÖYE EKLE -->
+    <div id="add-fund-modal" class="modal">
+        <div class="modal-content glass">
+            <span class="close-modal">&times;</span>
+            <h2 id="modal-fund-title">Fonu Ekle</h2>
+
+            <div class="input-group">
+                <label for="modal-category">Hangi Kategoriye Eklensin?</label>
+                <select id="modal-category" class="target-input">
+                    <option value="Para_Piyasasi">Para Piyasası</option>
+                    <option value="Teknoloji">Teknoloji</option>
+                    <option value="Altin">Altın</option>
+                    <option value="Kira_Sertifikasi">Kira Sertifikası</option>
+                    <option value="Hisse_Senedi">Hisse Senedi</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="modal-target-pct">Kategori İçi Hedef Yüzdesi (%)</label>
+                <input type="number" id="modal-target-pct" class="target-input" value="0" min="0" max="100">
+                <small class="modal-note">Not: Kategori içindeki fonların toplamı 100 olmalıdır.</small>
+            </div>
+
+            <div class="input-group">
+                <label for="modal-balance">Mevcut Bakiye (TL)</label>
+                <input type="number" id="modal-balance" class="target-input" value="0" step="0.01">
+            </div>
+
+            <button type="button" id="modal-save-btn" class="btn-primary">Portföye Ekle</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
