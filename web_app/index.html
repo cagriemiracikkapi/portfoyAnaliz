@@ -149,25 +149,19 @@
             <h2 id="modal-fund-title">Fonu Ekle</h2>
 
             <div class="input-group">
-                <label for="modal-category">Hangi Kategoriye Eklensin?</label>
-                <select id="modal-category" class="target-input">
-                    <option value="Para_Piyasasi">Para Piyasası</option>
-                    <option value="Teknoloji">Teknoloji</option>
-                    <option value="Altin">Altın</option>
-                    <option value="Kira_Sertifikasi">Kira Sertifikası</option>
-                    <option value="Hisse_Senedi">Hisse Senedi</option>
+                <label for="modal-category">Ekleneceği Kategori (Otomatik Atandı)</label>
+                <select id="modal-category" class="target-input modal-category-select-disabled" disabled>
+                    <!-- JS ile otomatik atanacak -->
                 </select>
             </div>
 
-            <div class="input-group">
-                <label for="modal-target-pct">Kategori İçi Hedef Yüzdesi (%)</label>
-                <input type="number" id="modal-target-pct" class="target-input" value="0" min="0" max="100">
-                <small class="modal-note">Not: Kategori içindeki fonların toplamı 100 olmalıdır.</small>
+            <div id="modal-category-summary" class="modal-category-summary-box">
+                <span class="modal-summary-title">Kategori Yönetimi</span>
+                <span id="modal-sum-badge" class="badge badge-green">Kalan: % 100</span>
             </div>
 
-            <div class="input-group">
-                <label for="modal-balance">Mevcut Bakiye (TL)</label>
-                <input type="number" id="modal-balance" class="target-input" value="0" step="0.01">
+            <div id="modal-funds-list" class="modal-funds-list-container">
+                <!-- JS ile dinamik olarak dolacak -->
             </div>
 
             <button type="button" id="modal-save-btn" class="btn-primary">Portföye Ekle</button>

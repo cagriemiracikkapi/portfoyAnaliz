@@ -242,18 +242,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `).join('');
 
+            let rem = 100 - subTargetSum;
+            let badgeClass = 'badge badge-green';
+            let badgeText = 'Kalan: %0 (Tamam)';
+            if (cat.funds.length === 0) {
+                 badgeClass = 'badge';
+                 badgeText = 'Boş Kategori';
+            } else if (Math.abs(rem) < 0.1) {
+                 badgeClass = 'badge badge-green';
+                 badgeText = 'Kalan: %0 (Tamam)';
+            } else if (rem < 0) {
+                 badgeClass = 'badge badge-red';
+                 badgeText = `Aşıldı: %${Math.abs(rem).toFixed(1)}`;
+            } else {
+                 badgeClass = 'badge badge-green';
+                 badgeText = `Kalan: %${rem.toFixed(1)}`;
+            }
+
             catDiv.innerHTML = `
                 <div class="category-header">
-                    <div style="display:flex; align-items:center;">
+                    <div style="display:flex; align-items:center; gap: 0.8rem;">
                         <span class="drag-handle" title="Tutup sürükleyin">⠿</span>
-                        <h3 style="margin:0">${cat.name}</h3>
+                        <div style="display:flex; align-items:center; gap: 0.5rem;">
+                            <h3 style="margin:0">${cat.name}</h3>
+                            <span class="${badgeClass}" style="font-size:0.75rem; padding:0.2rem 0.5rem;">${badgeText}</span>
+                        </div>
                     </div>
                     <div class="cat-target-wrap">
                         <label>Ana Hedef %</label>
                         <input type="number" value="${cat.target}" class="cat-target" data-cat="${catKey}">
                     </div>
                 </div>
-                ${!isSubTargetValid && cat.funds.length > 0 ? `<span class="cat-error">Hata: Kategori içi toplam %${subTargetSum.toFixed(1)}, %100 olmalı!</span>` : ''}
                 <div class="fund-list">${fundsHTML}</div>
                 <button type="button" class="add-fund-btn" data-cat="${catKey}">+ FARKLI BİR FON EKLE</button>
             `;
@@ -701,10 +720,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const targetCat = e.target.dataset.cat;
                 const catSelect = document.getElementById('modal-category');
-                if (targetCat && document.querySelector(`#modal-category option[value="${targetCat}"]`)) {
+                
+                if (portfolioState[targetCat]) {
+                    catSelect.innerHTML = `<option value="${targetCat}">${portfolioState[targetCat].name}</option>`;
                     catSelect.value = targetCat;
                 }
                 
+                renderModalFundsList(targetCat, pendingFundCode);
                 modal.classList.add('show');
             });
         });
@@ -722,7 +744,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let html = `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="window.changePage(${currentPage - 1})">Önceki</button>`;
-        
         let startPage = Math.max(1, currentPage - 2);
         let endPage = Math.min(totalPages, currentPage + 2);
         
@@ -749,6 +770,88 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPage = page;
         renderTable();
     };
+
+    function renderModalFundsList(targetCat, newFundCode) {
+        const listContainer = document.getElementById('modal-funds-list');
+        const cat = portfolioState[targetCat];
+        if (!cat) return;
+        
+        let html = '';
+        // Existing funds
+        cat.funds.forEach((f, idx) => {
+            html += `
+            <div class="modal-fund-row" data-code="${f.code}" data-isnew="false">
+                <div>
+                    <span class="code">${f.code}</span>
+                    <span class="bal-read">Mevcut: ${f.bal.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺</span>
+                </div>
+                <div>
+                    <input type="number" class="target-input m-pct" value="${f.target}" min="0" max="100" step="1">
+                </div>
+                <div>
+                    <!-- Bakiyeyi değiştirmesi istenmiyor (sadece gösterim) -->
+                </div>
+                <div>
+                    <button type="button" class="btn-danger m-del-btn" title="Kaldır" style="padding:0.4rem;">X</button>
+                </div>
+            </div>`;
+        });
+        
+        // New fund row
+        html += `
+        <div class="modal-fund-row is-new" data-code="${newFundCode}" data-isnew="true">
+            <div>
+                <span class="code">${newFundCode} <span style="font-size:0.8rem; color:var(--accent-green);">(Yeni)</span></span>
+                <span class="bal-read">İlk Bakiye:</span>
+            </div>
+            <div>
+                <input type="number" class="target-input m-pct" value="0" min="0" max="100" step="1" title="Hedef %">
+            </div>
+            <div>
+                <input type="number" class="target-input m-bal" value="0" step="0.01" title="TL Bakiye" style="font-size:0.9rem; padding:0.4rem;">
+            </div>
+            <div></div>
+        </div>`;
+        
+        listContainer.innerHTML = html;
+        
+        // Attach live sum logic
+        const inputs = listContainer.querySelectorAll('.m-pct');
+        inputs.forEach(inp => inp.addEventListener('input', updateModalLiveSum));
+        
+        // Attach delete logic
+        listContainer.querySelectorAll('.m-del-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.modal-fund-row').remove();
+                updateModalLiveSum();
+            });
+        });
+        
+        updateModalLiveSum();
+    }
+    
+    function updateModalLiveSum() {
+        const listContainer = document.getElementById('modal-funds-list');
+        const badge = document.getElementById('modal-sum-badge');
+        if(!listContainer || !badge) return;
+        
+        let sum = 0;
+        listContainer.querySelectorAll('.m-pct').forEach(inp => {
+            sum += parseFloat(inp.value) || 0;
+        });
+        
+        const rem = 100 - sum;
+        if (Math.abs(rem) < 0.1) {
+            badge.className = 'badge badge-green';
+            badge.textContent = 'Kalan: %0 (Tamam)';
+        } else if (rem < 0) {
+            badge.className = 'badge badge-red';
+            badge.textContent = `Aşıldı: %${Math.abs(rem).toFixed(1)}`;
+        } else {
+            badge.className = 'badge badge-green';
+            badge.textContent = `Kalan: %${rem.toFixed(1)}`;
+        }
+    }
 
     searchInput.addEventListener('input', () => {
         currentPage = 1;
@@ -803,22 +906,31 @@ document.addEventListener('DOMContentLoaded', () => {
     closeModalBtn.addEventListener('click', () => modal.classList.remove('show'));
     modalSaveBtn.addEventListener('click', () => {
         const catKey = document.getElementById('modal-category').value;
-        const targetPct = parseFloat(document.getElementById('modal-target-pct').value) || 0;
-        const bal = parseFloat(document.getElementById('modal-balance').value) || 0;
-
-        portfolioState[catKey].funds.push({
-            code: pendingFundCode,
-            target: targetPct,
-            bal: bal
+        const listContainer = document.getElementById('modal-funds-list');
+        if (!portfolioState[catKey]) return;
+        
+        const newFundsArr = [];
+        listContainer.querySelectorAll('.modal-fund-row').forEach(row => {
+            const code = row.dataset.code;
+            const isNew = row.dataset.isnew === 'true';
+            const pct = parseFloat(row.querySelector('.m-pct').value) || 0;
+            
+            let bal = 0;
+            if (isNew) {
+                bal = parseFloat(row.querySelector('.m-bal').value) || 0;
+            } else {
+                const existing = portfolioState[catKey].funds.find(f => f.code === code);
+                bal = existing ? existing.bal : 0;
+            }
+            
+            newFundsArr.push({ code, target: pct, bal });
         });
-
+        
+        portfolioState[catKey].funds = newFundsArr;
+        
         modal.classList.remove('show');
         renderPortfolioUI();
         document.querySelector('[data-tab="tab-rebalancer"]').click(); // switch tab back
-        
-        // Reset inputs
-        document.getElementById('modal-target-pct').value = "0";
-        document.getElementById('modal-balance').value = "0";
     });
 
     // --- GLOBAL TOOLTIP LOGIC ---
