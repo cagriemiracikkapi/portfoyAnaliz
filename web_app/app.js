@@ -23,15 +23,33 @@ document.addEventListener('DOMContentLoaded', () => {
             name: 'Kira Sertifikası', target: 15, 
             funds: [ {code: 'RBT', target: 100, bal: 0} ] 
         },
+        'Coklu_Varlik': {
+            name: 'Çoklu Varlık', target: 0,
+            funds: []
+        },
         'Hisse_Senedi': { 
             name: 'Hisse Senedi', target: 10, 
             funds: [ {code: 'RBH', target: 100, bal: 0} ] 
+        },
+        'Birinci_Katilim': {
+            name: 'Birinci Katılım', target: 0,
+            funds: []
+        },
+        'Diger': {
+            name: 'Diğer', target: 0,
+            funds: []
         }
     };
 
+    let categoryOrder = JSON.parse(localStorage.getItem('categoryOrder')) || Object.keys(portfolioState);
+    Object.keys(portfolioState).forEach(k => {
+        if(!categoryOrder.includes(k)) categoryOrder.push(k);
+    });
+    categoryOrder = categoryOrder.filter(k => portfolioState[k]);
+
     let allFundsData = []; // From CSV
     let headers = []; // Dynamic headers from CSV
-    let activeFilters = []; // Advanced Rules
+    let activeFilters = JSON.parse(localStorage.getItem('activeFilters')) || []; // Advanced Rules from storage
     let currentFilteredData = []; // Kept for export
     let sortCol = 7; // Default sort by YBB
     let sortAsc = false;
@@ -42,6 +60,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ELEMENTS ---
     const container = document.getElementById('categories-container');
+    
+    // Live Drag and Drop sorting
+    container.addEventListener('dragover', e => {
+        e.preventDefault();
+        
+        // Auto-scroll
+        const threshold = 80;
+        if (e.clientY < threshold) {
+            window.scrollBy(0, -15);
+        } else if (e.clientY > window.innerHeight - threshold) {
+            window.scrollBy(0, 15);
+        }
+        
+        const draggable = document.querySelector('.dragging');
+        if (!draggable) return;
+        
+        const afterElement = getDragAfterElement(container, e.clientY);
+        if (afterElement == null) {
+            container.appendChild(draggable);
+        } else {
+            container.insertBefore(draggable, afterElement);
+        }
+    });
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.category-block:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    const hideEmptyCatsCheckbox = document.getElementById('hide-empty-cats');
+    let hideEmptyCategories = localStorage.getItem('hideEmptyCategories') === 'true';
+    if (hideEmptyCatsCheckbox) {
+        hideEmptyCatsCheckbox.checked = hideEmptyCategories;
+        hideEmptyCatsCheckbox.addEventListener('change', (e) => {
+            hideEmptyCategories = e.target.checked;
+            localStorage.setItem('hideEmptyCategories', hideEmptyCategories);
+            renderPortfolioUI();
+        });
+    }
+
     const totalTargetBadge = document.getElementById('total-target-main');
     const calculateBtn = document.getElementById('calculate-btn');
     const errorMsg = document.getElementById('error-msg');
@@ -118,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let mainTargetSum = 0;
         let hasError = false;
 
-        Object.keys(portfolioState).forEach(catKey => {
+        categoryOrder.forEach(catKey => {
             const cat = portfolioState[catKey];
             mainTargetSum += cat.target;
 
@@ -127,8 +193,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const isSubTargetValid = Math.abs(subTargetSum - 100) < 0.1;
             if(!isSubTargetValid && cat.funds.length > 0) hasError = true;
 
+            // Render check
+            if (hideEmptyCategories && cat.funds.length === 0) return;
+
             const catDiv = document.createElement('div');
             catDiv.className = 'category-block';
+            catDiv.dataset.catKey = catKey;
+            
+            catDiv.addEventListener('mousedown', function(e) {
+                if (e.target.closest('.drag-handle')) {
+                    this.setAttribute('draggable', 'true');
+                } else {
+                    this.removeAttribute('draggable');
+                }
+            });
+            
+            catDiv.addEventListener('dragstart', function(e) {
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => this.style.opacity = '0.1', 0);
+            });
+            
+            catDiv.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                this.style.opacity = '1';
+                
+                // Save new order based on interactive DOM changes
+                const newOrder = [...container.querySelectorAll('.category-block')].map(el => el.dataset.catKey);
+                categoryOrder = newOrder;
+                localStorage.setItem('categoryOrder', JSON.stringify(categoryOrder));
+            });
             
             let fundsHTML = cat.funds.map((f, idx) => `
                 <div class="fund-row">
@@ -150,7 +244,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             catDiv.innerHTML = `
                 <div class="category-header">
-                    <h3>${cat.name}</h3>
+                    <div style="display:flex; align-items:center;">
+                        <span class="drag-handle" title="Tutup sürükleyin">⠿</span>
+                        <h3 style="margin:0">${cat.name}</h3>
+                    </div>
                     <div class="cat-target-wrap">
                         <label>Ana Hedef %</label>
                         <input type="number" value="${cat.target}" class="cat-target" data-cat="${catKey}">
@@ -204,9 +301,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.querySelectorAll('.add-fund-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                // Switching to Market tab to select a fund
+                const catKey = e.target.dataset.cat;
+                const catName = portfolioState[catKey].name;
+                
+                // Switch tab
                 document.querySelector('[data-tab="tab-market"]').click();
-                searchInput.focus();
+                
+                // Clear existing Kategori filters
+                const catColIdx = headers.indexOf('Kategori Tagı');
+                if (catColIdx > -1) {
+                    activeFilters = activeFilters.filter(f => f.colIdx !== catColIdx);
+                    
+                    // Add new Kategori filter
+                    activeFilters.push({
+                        colIdx: catColIdx,
+                        colName: 'Kategori Tagı',
+                        op: '=',
+                        v1: catName,
+                        v2: ''
+                    });
+                    
+                    currentPage = 1;
+                    renderActiveFilters();
+                    renderTable();
+                }
             });
         });
     }
@@ -218,8 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentTotal = 0;
         let flatFunds = [];
         
-        // Flatten array and get total current
-        Object.keys(portfolioState).forEach(catKey => {
+        // Flatten array and get total current using ordered keys
+        categoryOrder.forEach(catKey => {
             portfolioState[catKey].funds.forEach(f => {
                 currentTotal += f.bal;
                 flatFunds.push({...f, catWeight: portfolioState[catKey].target / 100, catKey: catKey});
@@ -338,6 +456,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderActiveFilters() {
+        localStorage.setItem('activeFilters', JSON.stringify(activeFilters));
+        
         activeRulesList.innerHTML = activeFilters.map((f, i) => {
             let desc = '';
             if (f.op === 'between') desc = `${f.colName} şunlar arasında: ${f.v1} - ${f.v2}`;
@@ -419,27 +539,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- TABLE & CSV PARSING ---
+    function computeCategory(fundName, umbrellaType) {
+        fundName = (fundName || "").toLocaleLowerCase('tr-TR');
+        umbrellaType = (umbrellaType || "").toLocaleLowerCase('tr-TR');
+        
+        for (const key in portfolioState) {
+            const catName = portfolioState[key].name.toLocaleLowerCase('tr-TR');
+            let aliases = [catName];
+            if (key === 'Altin') aliases.push('kıymetli maden', 'altın');
+            if (key === 'Hisse_Senedi') aliases.push('hisse senedi');
+            if (key === 'Kira_Sertifikasi') aliases.push('kira sertifikası', 'kira sertifikaları', 'kira sertifika');
+            if (key === 'Para_Piyasasi') aliases.push('para piyasası');
+            if (key === 'Teknoloji') aliases.push('teknoloji', 'bilişim', 'yarı iletken');
+            if (key === 'Coklu_Varlik') aliases.push('çoklu varlık');
+            if (key === 'Birinci_Katilim') aliases.push('birinci katılım', 'birinci kat');
+            
+            for (let alias of aliases) {
+                if (fundName.includes(alias) || umbrellaType.includes(alias)) {
+                    return portfolioState[key].name;
+                }
+            }
+        }
+        return 'Diğer';
+    }
+
     function parseNumberStr(str) {
         if(!str) return -999999;
         return parseFloat(str.replace(',', '.')) || -999999;
     }
 
     function renderTable() {
-        const query = searchInput.value.toLowerCase();
+        const query = searchInput.value.toLocaleLowerCase('tr-TR');
         
         // Filter (Search + Advanced Rules)
         let filtered = allFundsData.filter(row => {
             // Text Search
-            const matchSearch = row[0].toLowerCase().includes(query) || row[1].toLowerCase().includes(query);
+            const matchSearch = (row[0] || "").toLocaleLowerCase('tr-TR').includes(query) || (row[1] || "").toLocaleLowerCase('tr-TR').includes(query);
             if (!matchSearch) return false;
 
             // Advanced Rules (AND logic)
             for (let filter of activeFilters) {
                 let cellVal = row[filter.colIdx];
-                let isNumCol = (filter.colIdx >= 3 && filter.colIdx <= 16) || filter.colIdx > 17; // General heuristic for Tefas CSV
+                let isNumCol = (filter.colIdx >= 3 && filter.colIdx <= 16) || (filter.colIdx > 17 && filter.colIdx !== headers.indexOf('Kategori Tagı'));
                 
                 if (filter.op === 'contains') {
-                    if (!(cellVal || "").toLowerCase().includes(filter.v1.toLowerCase())) return false;
+                    if (!(cellVal || "").toLocaleLowerCase('tr-TR').includes(filter.v1.toLocaleLowerCase('tr-TR'))) return false;
+                } else if (!isNumCol && filter.op === '=') {
+                    // Exact string match
+                    if ((cellVal || "").toLocaleLowerCase('tr-TR') !== (filter.v1 || "").toLocaleLowerCase('tr-TR')) return false;
                 } else {
                     let numVal = parseNumberStr(cellVal);
                     let v1 = parseFloat(filter.v1.replace(',', '.')) || 0;
@@ -489,13 +636,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const paginatedData = filtered.slice(startIndex, startIndex + rowsPerPage);
 
         // Render Header
-        tableHeaderRow.innerHTML = headers.map((h, i) => {
-            const isHidden = !document.querySelector(`#column-toggles input[value="${i}"]`).checked;
+        tableHeaderRow.innerHTML = '<th>İşlem</th>' + headers.map((h, i) => {
+            const toggle = document.querySelector(`#column-toggles input[value="${i}"]`);
+            const isHidden = toggle ? !toggle.checked : false;
             if(isHidden) return '';
             const isSorted = sortCol === i;
             const sortIcon = isSorted ? (sortAsc ? ' 🔼' : ' 🔽') : '';
             return `<th data-col="${i}" style="cursor:pointer">${h}${sortIcon}</th>`;
-        }).join('') + '<th>İşlem</th>';
+        }).join('');
 
         // Bind Sort Events
         tableHeaderRow.querySelectorAll('th[data-col]').forEach(th => {
@@ -521,12 +669,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tableBody.innerHTML = paginatedData.map(row => {
-            let html = '';
+            const catColIdx = headers.indexOf('Kategori Tagı');
+            const rowCatName = row[catColIdx];
+            let rowCatKey = '';
+            for (const k in portfolioState) {
+                if (portfolioState[k].name === rowCatName) rowCatKey = k;
+            }
+            
+            let html = `<td><button type="button" class="add-from-table-btn" data-code="${row[0]}" data-cat="${rowCatKey}">+ Ekle</button></td>`;
             headers.forEach((_, i) => {
-                const isHidden = !document.querySelector(`#column-toggles input[value="${i}"]`).checked;
-                if(!isHidden) html += `<td>${row[i] || '-'}</td>`;
+                const toggle = document.querySelector(`#column-toggles input[value="${i}"]`);
+                const isHidden = toggle ? !toggle.checked : false;
+                if(!isHidden) {
+                    if (i === catColIdx) {
+                        html += `<td><span class="badge" style="background:rgba(59,130,246,0.2); border:1px solid rgba(59,130,246,0.3)">${row[i]}</span></td>`;
+                    } else {
+                        html += `<td>${row[i] || '-'}</td>`;
+                    }
+                }
             });
-            html += `<td><button type="button" class="add-from-table-btn" data-code="${row[0]}">+ Ekle</button></td>`;
             return `<tr>${html}</tr>`;
         }).join('');
 
@@ -535,6 +696,13 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', (e) => {
                 pendingFundCode = e.target.dataset.code;
                 document.getElementById('modal-fund-title').textContent = `${pendingFundCode} Fonunu Ekle`;
+                
+                const targetCat = e.target.dataset.cat;
+                const catSelect = document.getElementById('modal-category');
+                if (targetCat && document.querySelector(`#modal-category option[value="${targetCat}"]`)) {
+                    catSelect.value = targetCat;
+                }
+                
                 modal.classList.add('show');
             });
         });
@@ -591,10 +759,17 @@ document.addEventListener('DOMContentLoaded', () => {
         skipEmptyLines: true,
         complete: function(results) {
             headers = results.data.shift(); // First row is headers
-            allFundsData = results.data;
+            
+            headers.push("Kategori Tagı");
+            const catColIdx = headers.length - 1;
+            
+            allFundsData = results.data.map(row => {
+                row.push(computeCategory(row[1], row[2]));
+                return row;
+            });
             
             // Default active columns
-            const defaultCols = ['Fon Kodu', 'Fon Adı', 'Şemsiye Fon Türü', 'Fonun Risk Değeri', '1 Ay (%)', 'Yılbaşından İtibaren (%)', '1 Yıl (%)'];
+            const defaultCols = ['Fon Kodu', 'Fon Adı', 'Kategori Tagı', 'Fonun Risk Değeri', '1 Ay (%)', 'Yılbaşından İtibaren (%)', '1 Yıl (%)'];
             
             // Build toggles and Dropdown Options
             let togglesHTML = '';
@@ -617,6 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
             
+            renderActiveFilters(); // Render loaded filters
             renderTable();
         }
     });

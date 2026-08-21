@@ -33,7 +33,12 @@
             <section class="panel glass">
                 <div class="panel-header">
                     <h2>🎯 Strateji &amp; Bakiyeler</h2>
-                    <span id="total-target-main" class="badge badge-green">Kategori Toplamı: % 100</span>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.5rem;">
+                        <span id="total-target-main" class="badge badge-green">Kategori Toplamı: % 100</span>
+                        <label style="font-size:0.85rem; color:var(--text-muted); cursor:pointer; display:flex; align-items:center;">
+                            <input type="checkbox" id="hide-empty-cats" style="margin-right:5px; accent-color:var(--accent-blue);"> Boş Kategorileri Gizle
+                        </label>
+                    </div>
                 </div>
 
                 <div id="categories-container">
