@@ -66,15 +66,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- HELPERS ---
     const formatMoney = (amount) => new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
 
-    // --- TAB LOGIC ---
+    // --- TAB LOGIC (With Persistence) ---
+    let activeTab = localStorage.getItem('activeTab') || 'tab-rebalancer';
+    
+    // Set initial active tab
+    tabBtns.forEach(b => b.classList.remove('active'));
+    tabContents.forEach(c => c.classList.remove('active'));
+    
+    const activeBtn = document.querySelector(`[data-tab="${activeTab}"]`);
+    if(activeBtn) {
+        activeBtn.classList.add('active');
+        document.getElementById(activeTab).classList.add('active');
+    }
+
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             tabBtns.forEach(b => b.classList.remove('active'));
             tabContents.forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
-            document.getElementById(btn.dataset.tab).classList.add('active');
+            const targetTab = btn.dataset.tab;
+            document.getElementById(targetTab).classList.add('active');
+            localStorage.setItem('activeTab', targetTab);
         });
     });
+
+    // --- DROPDOWN LOGIC ---
+    const filterBtn = document.getElementById('filter-dropdown-btn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            columnTogglesContainer.classList.toggle('show');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!columnTogglesContainer.contains(e.target) && e.target !== filterBtn) {
+                columnTogglesContainer.classList.remove('show');
+            }
+        });
+    }
 
     // --- RENDER DYNAMIC PORTFOLIO UI ---
     function renderPortfolioUI() {

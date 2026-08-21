@@ -122,7 +122,7 @@ header h1 span {
 .tab-content.active {
     display: grid; /* for rebalancer */
 }
-main#tab-market.active {
+#tab-market.active {
     display: block; /* for market table */
 }
 
@@ -318,15 +318,23 @@ input[type="number"]:focus, input[type="text"]:focus, select:focus {
 .result-item .fund-amount.zero { color: var(--text-muted); font-weight: 400; }
 .result-item .fund-meta { font-size: 0.85rem; color: var(--text-muted); }
 
-/* Tables */
-.column-toggles {
-    display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
-    background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;
+/* Tables & Filters */
+.filter-dropdown { position: relative; display: inline-block; margin-bottom: 1.5rem; }
+.btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: white; padding: 0.6rem 1rem; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.9rem; transition: background 0.2s;}
+.btn-secondary:hover { background: rgba(255,255,255,0.2); }
+.dropdown-content { 
+    display: none; position: absolute; background: rgba(15, 23, 42, 0.95); 
+    min-width: 250px; box-shadow: 0px 8px 24px rgba(0,0,0,0.6); 
+    z-index: 50; border-radius: 8px; border: 1px solid var(--glass-border); 
+    max-height: 400px; overflow-y: auto; flex-direction: column; padding: 1rem; 
+    backdrop-filter: blur(10px); top: 110%; left: 0;
 }
-.column-toggles label { font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.dropdown-content.show { display: flex; gap: 0.5rem; }
+.dropdown-content label { font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.dropdown-content label:last-child { border-bottom: none; }
 
-.table-responsive { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; display: block; }
+table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; min-width: 800px; }
 th, td { padding: 1rem; border-bottom: 1px solid var(--glass-border); white-space: nowrap; }
 th {
     background: rgba(255,255,255,0.05); font-weight: 600; color: var(--accent-blue);
