@@ -580,6 +580,50 @@ footer { text-align: center; margin-top: 4rem; color: var(--text-muted); font-si
     margin-bottom: 1rem;
 }
 
-.post-investment-risk-container {
+.post-investment-risk-container,
+.future-projection-container {
     margin-top: 0.5rem;
+}
+
+/* Future Projections */
+.projection-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+    margin-top: 1rem;
+}
+.proj-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 0.8rem;
+    text-align: center;
+}
+.proj-card-title {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+}
+.proj-card-val {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-green);
+    margin-bottom: 0.2rem;
+}
+.proj-card-profit {
+    font-size: 0.8rem;
+    color: var(--text-main);
+}
+.extrapolated-warning {
+    font-size: 0.75rem;
+    color: var(--accent-purple);
+    margin-top: 0.4rem;
+    display: block;
+}
+.proj-disclaimer {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    text-align: center;
+    font-style: italic;
 }

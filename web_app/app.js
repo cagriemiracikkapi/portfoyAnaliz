@@ -435,6 +435,99 @@ document.addEventListener('DOMContentLoaded', () => {
             let newAvgRisk = finalTotal > 0 ? newWeightedRiskSum / finalTotal : 0;
             postRiskContainer.innerHTML = generateRiskHTML(finalTotal, newAvgRisk);
         }
+
+        // --- FUTURE PROJECTIONS ---
+        const projectionContainer = document.getElementById('future-projection-content');
+        if (projectionContainer && finalTotal > 0) {
+            let proj1Mo = 0, proj1Yr = 0, proj3Yr = 0, proj5Yr = 0;
+            let hasExtrapolated1Y = false, hasExtrapolated3Y = false, hasExtrapolated5Y = false;
+
+            const idx1Mo = headers.indexOf('1 Ay (%)');
+            const idx1Yr = headers.indexOf('1 Yıl (%)');
+            const idx3Yr = headers.indexOf('3 Yıl (%)');
+            const idx5Yr = headers.indexOf('5 Yıl (%)');
+
+            finalArr.forEach(f => {
+                const fundData = allFundsData.find(row => row[0] === f.code);
+                if (!fundData) return;
+                
+                const parsePct = (val) => {
+                    if (!val) return null;
+                    const clean = val.replace(',', '.');
+                    const num = parseFloat(clean);
+                    return isNaN(num) ? null : num;
+                };
+
+                let p1m = parsePct(fundData[idx1Mo]);
+                let p1y = parsePct(fundData[idx1Yr]);
+                let p3y = parsePct(fundData[idx3Yr]);
+                let p5y = parsePct(fundData[idx5Yr]);
+
+                // 1 Month Logic
+                let used1Mo = p1m || 0;
+                proj1Mo += f.amount * (used1Mo / 100);
+
+                // 1 Year Logic
+                if (p1y !== null) {
+                    proj1Yr += f.amount * (p1y / 100);
+                } else if (p1m !== null) {
+                    proj1Yr += f.amount * (p1m * 12 / 100);
+                    hasExtrapolated1Y = true;
+                }
+
+                // 3 Year Logic
+                if (p3y !== null) {
+                    proj3Yr += f.amount * (p3y / 100);
+                } else if (p1y !== null) {
+                    proj3Yr += f.amount * (p1y * 3 / 100);
+                    hasExtrapolated3Y = true;
+                } else if (p1m !== null) {
+                    proj3Yr += f.amount * (p1m * 36 / 100);
+                    hasExtrapolated3Y = true;
+                }
+
+                // 5 Year Logic
+                if (p5y !== null) {
+                    proj5Yr += f.amount * (p5y / 100);
+                } else if (p3y !== null) {
+                    proj5Yr += f.amount * ((p3y / 3) * 5 / 100);
+                    hasExtrapolated5Y = true;
+                } else if (p1y !== null) {
+                    proj5Yr += f.amount * (p1y * 5 / 100);
+                    hasExtrapolated5Y = true;
+                } else if (p1m !== null) {
+                    proj5Yr += f.amount * (p1m * 60 / 100);
+                    hasExtrapolated5Y = true;
+                }
+            });
+
+            const renderCard = (title, projProfit, isExtrapolated) => {
+                const finalAmt = finalTotal + projProfit;
+                const warnHTML = isExtrapolated ? `<span class="extrapolated-warning" title="Eksik verisi olan bazı yeni fonlar için geçmiş verilerinden matematiksel uyarlama (ekstrapolasyon) yapılmıştır.">⚠️ Veri Uyarlaması İçerir</span>` : '';
+                const profitColor = projProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+                const profitSign = projProfit >= 0 ? '+' : '';
+                return `
+                    <div class="proj-card">
+                        <div class="proj-card-title">${title}</div>
+                        <div class="proj-card-val">${finalAmt.toLocaleString('tr-TR', {minimumFractionDigits:0, maximumFractionDigits:0})} ₺</div>
+                        <div class="proj-card-profit">Beklenen Kar: <span style="color:${profitColor}">${profitSign}${projProfit.toLocaleString('tr-TR', {minimumFractionDigits:0, maximumFractionDigits:0})} ₺</span></div>
+                        ${warnHTML}
+                    </div>
+                `;
+            };
+
+            projectionContainer.innerHTML = `
+                <div class="projection-grid">
+                    ${renderCard('1 Ay Sonra', proj1Mo, false)}
+                    ${renderCard('1 Yıl Sonra', proj1Yr, hasExtrapolated1Y)}
+                    ${renderCard('3 Yıl Sonra', proj3Yr, hasExtrapolated3Y)}
+                    ${renderCard('5 Yıl Sonra', proj5Yr, hasExtrapolated5Y)}
+                </div>
+                <div class="proj-disclaimer">
+                    * Bu değerler fonların geçmiş performanslarına dayalı matematiksel bir projeksiyondur, kesinlik bildirmez. Gelecekteki getiriler geçmiş performanslardan farklı olabilir.
+                </div>
+            `;
+        }
     });
 
     // --- ADVANCED FILTERS LOGIC ---
